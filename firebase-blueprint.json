@@ -1,0 +1,201 @@
+{
+  "entities": {
+    "SiteSettings": {
+      "title": "Site Settings",
+      "description": "Global identification and branding",
+      "type": "object",
+      "properties": {
+        "artistName": { "type": "string" },
+        "footer": {
+          "type": "object",
+          "properties": {
+            "socialLinks": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "platform": { "type": "string" },
+                  "url": { "type": "string" },
+                  "iconName": { "type": "string" }
+                }
+              }
+            },
+            "copyrightText": { "type": "string" }
+          }
+        },
+        "images": {
+          "type": "object",
+          "properties": {
+            "hero": { "type": "string" },
+            "portrait": { "type": "string" }
+          }
+        }
+      },
+      "required": ["artistName"]
+    },
+    "HomeContent": {
+      "title": "Home Page Content",
+      "description": "Content specific to the homepage",
+      "type": "object",
+      "properties": {
+        "heroTitle": { "type": "string" },
+        "heroSubtitle": { "type": "string" },
+        "aboutText": { "type": "string" },
+        "featuredTracks": { "type": "array", "items": { "type": "string" } },
+        "bioTitle": { "type": "string" },
+        "bioSubtitle": { "type": "string" },
+        "bioParagraphs": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "AboutContent": {
+      "title": "About Page Content",
+      "description": "Biography and history",
+      "type": "object",
+      "properties": {
+        "tagline": { "type": "string" },
+        "story": { "type": "array", "items": { "type": "string" } },
+        "influences": { "type": "array", "items": { "type": "string" } },
+        "milestones": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "year": { "type": "string" },
+              "title": { "type": "string" },
+              "description": { "type": "string" }
+            }
+          }
+        }
+      }
+    },
+    "BookingContent": {
+      "title": "Booking Page Content",
+      "description": "Booking details and contact",
+      "type": "object",
+      "properties": {
+        "description": { "type": "string" },
+        "availability": { "type": "string" },
+        "base": { "type": "string" },
+        "email": { "type": "string" }
+      }
+    },
+    "ContactContent": {
+      "title": "Contact Page Content",
+      "description": "Contact emails",
+      "type": "object",
+      "properties": {
+        "managementEmail": { "type": "string" },
+        "pressEmail": { "type": "string" },
+        "generalEmail": { "type": "string" }
+      }
+    },
+    "Track": {
+      "title": "Track",
+      "description": "A music track",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "artist": { "type": "string" },
+        "audioUrl": { "type": "string" },
+        "coverUrl": { "type": "string" },
+        "duration": { "type": "string" },
+        "lyrics": { "type": "string" },
+        "album": { "type": "string" }
+      },
+      "required": ["id", "title", "audioUrl"]
+    },
+    "Album": {
+      "title": "Album",
+      "description": "A music album",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "releaseDate": { "type": "string" },
+        "coverUrl": { "type": "string" },
+        "tracks": { "type": "array", "items": { "type": "string" } }
+      },
+      "required": ["id", "title"]
+    },
+    "Video": {
+      "title": "Video",
+      "description": "A music video",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "youtubeUrl": { "type": "string" },
+        "description": { "type": "string" }
+      },
+      "required": ["id", "title", "youtubeUrl"]
+    },
+    "GalleryImage": {
+      "title": "Gallery Image",
+      "description": "An image in the gallery",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "url": { "type": "string" },
+        "caption": { "type": "string" },
+        "altText": { "type": "string" }
+      },
+      "required": ["id", "url"]
+    },
+    "BookingRequest": {
+      "title": "Booking Request",
+      "description": "Booking request from client",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "email": { "type": "string" },
+        "eventType": { "type": "string" },
+        "date": { "type": "string" },
+        "message": { "type": "string" },
+        "status": { "type": "string" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["id", "name", "email", "eventType", "date", "message", "status"]
+    },
+    "ContactMessage": {
+      "title": "Contact Message",
+      "description": "Contact inquiry message from user",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "email": { "type": "string" },
+        "subject": { "type": "string" },
+        "message": { "type": "string" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["id", "name", "email", "subject", "message"]
+    },
+    "NewsletterSubscriber": {
+      "title": "Newsletter Subscriber",
+      "description": "Subscribed newsletter email record",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "email": { "type": "string" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["id", "email"]
+    }
+  },
+  "firestore": {
+    "/settings/main": { "schema": "SiteSettings", "description": "Global artist info and site-wide settings" },
+    "/home/main": { "schema": "HomeContent", "description": "Home page specific content" },
+    "/about/main": { "schema": "AboutContent", "description": "About page specific content" },
+    "/booking/main": { "schema": "BookingContent", "description": "Booking page specific content" },
+    "/contact/main": { "schema": "ContactContent", "description": "Contact page specific content" },
+    "/tracks/{trackId}": { "schema": "Track", "description": "Audio tracks collection" },
+    "/albums/{albumId}": { "schema": "Album", "description": "Albums collection" },
+    "/videos/{videoId}": { "schema": "Video", "description": "Videos collection" },
+    "/gallery/{imageId}": { "schema": "GalleryImage", "description": "Gallery images collection" },
+    "/bookings/{bookingId}": { "schema": "BookingRequest", "description": "Booking requests collection" },
+    "/contacts/{messageId}": { "schema": "ContactMessage", "description": "Contact messages collection" },
+    "/subscribers/{subscriberId}": { "schema": "NewsletterSubscriber", "description": "Newsletter subscribers collection" }
+  }
+}

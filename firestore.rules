@@ -1,0 +1,156 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Default Deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // --- Helpers ---
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isEmailVerified() {
+      return isSignedIn() && request.auth.token.email_verified == true;
+    }
+
+    function isAdmin() {
+      // Identity is verified via a trusted document in the 'admins' collection.
+      // Bootstrap logic: Allow initial admin email to act as admin.
+      return isSignedIn() && (
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid)) ||
+        (request.auth.token.email == "silinkjay43@gmail.com")
+      );
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    // --- Entity Validations ---
+
+    function isValidSiteSettings(data) {
+      return data.keys().hasAll(['artistName']) &&
+             data.artistName is string && data.artistName.size() <= 100;
+    }
+
+    function isValidTrack(data) {
+      return data.id is string && data.title is string && data.title.size() <= 500 &&
+             data.audioUrl is string && data.audioUrl.size() <= 3000 &&
+             (data.lyrics == null || data.lyrics is string && data.lyrics.size() <= 15000);
+    }
+
+    function isValidAlbum(data) {
+      return data.id is string && data.title is string && data.title.size() <= 500 &&
+             (data.tracks == null || data.tracks is list && data.tracks.size() <= 200);
+    }
+
+    function isValidVideo(data) {
+      return data.id is string && data.title is string && data.title.size() <= 500 &&
+             data.youtubeUrl is string && data.youtubeUrl.size() <= 3000;
+    }
+
+    function isValidGalleryImage(data) {
+      return data.id is string && data.url is string && data.url.size() <= 3000;
+    }
+
+    function isValidBookingRequest(data) {
+      return data.id is string && data.id.size() <= 128 &&
+             data.name is string && data.name.size() <= 200 &&
+             data.email is string && data.email.size() <= 200 &&
+             data.eventType is string && data.eventType.size() <= 200 &&
+             data.date is string && data.date.size() <= 100 &&
+             data.message is string && data.message.size() <= 10000 &&
+             data.status is string && data.status.size() <= 50;
+    }
+
+    function isValidContactMessage(data) {
+      return data.id is string && data.id.size() <= 128 &&
+             data.name is string && data.name.size() <= 200 &&
+             data.email is string && data.email.size() <= 200 &&
+             data.subject is string && data.subject.size() <= 200 &&
+             data.message is string && data.message.size() <= 10000;
+    }
+
+    function isValidNewsletterSubscriber(data) {
+      return data.id is string && data.id.size() <= 128 &&
+             data.email is string && data.email.size() <= 200;
+    }
+
+    // --- Collection Routes ---
+
+    match /settings/main {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /home/main {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /about/main {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /booking/main {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /contact/main {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /tracks/{trackId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /albums/{albumId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /videos/{videoId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /gallery/{imageId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /bookings/{bookingId} {
+      allow read, write: if isAdmin();
+      allow create: if isValidBookingRequest(incoming()) && incoming().createdAt == request.time && incoming().status == 'pending';
+    }
+
+    match /contacts/{messageId} {
+      allow read, write: if isAdmin();
+      allow create: if isValidContactMessage(incoming()) && incoming().createdAt == request.time;
+    }
+
+    match /subscribers/{subscriberId} {
+      allow read, write: if isAdmin();
+      allow create: if isValidNewsletterSubscriber(incoming()) && incoming().createdAt == request.time;
+    }
+
+    match /admins/{adminId} {
+      allow read: if isSignedIn() && (request.auth.uid == adminId || isAdmin());
+      allow write: if false; 
+    }
+  }
+}

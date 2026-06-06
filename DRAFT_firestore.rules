@@ -1,0 +1,122 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Default Deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // --- Helpers ---
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isEmailVerified() {
+      return isSignedIn() && request.auth.token.email_verified == true;
+    }
+
+    function isAdmin() {
+      // Identity is verified via a trusted document in the 'admins' collection.
+      // Boostrap logic: Allow initial admin email to act as admin.
+      return isSignedIn() && (
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid)) ||
+        (request.auth.token.email == "silinkjay43@gmail.com" && request.auth.token.email_verified == true)
+      );
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    // --- Entity Validations ---
+
+    function isValidSiteSettings(data) {
+      return data.keys().hasAll(['artistName']) &&
+             data.artistName is string && data.artistName.size() <= 100;
+    }
+
+    function isValidTrack(data) {
+      return data.id is string && data.title is string && data.title.size() <= 200 &&
+             data.audioUrl is string && data.audioUrl.size() <= 1000 &&
+             (data.lyrics == null || data.lyrics is string && data.lyrics.size() <= 10000);
+    }
+
+    function isValidAlbum(data) {
+      return data.id is string && data.title is string && data.title.size() <= 200 &&
+             (data.tracks == null || data.tracks is list && data.tracks.size() <= 100);
+    }
+
+    function isValidVideo(data) {
+      return data.id is string && data.title is string && data.title.size() <= 200 &&
+             data.youtubeUrl is string && data.youtubeUrl.size() <= 500;
+    }
+
+    function isValidGalleryImage(data) {
+      return data.id is string && data.url is string && data.url.size() <= 1000;
+    }
+
+    // --- Collection Routes ---
+
+    // Public Collections (Read for everyone, Write for Admins)
+    
+    match /settings/main {
+      allow read: if true;
+      allow write: if isAdmin() && isValidSiteSettings(incoming());
+    }
+
+    match /home/main {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /about/main {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /booking/main {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /contact/main {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /tracks/{trackId} {
+      allow read: if true;
+      allow write: if isAdmin() && isValidId(trackId) && isValidTrack(incoming());
+    }
+
+    match /albums/{albumId} {
+      allow read: if true;
+      allow write: if isAdmin() && isValidId(albumId) && isValidAlbum(incoming());
+    }
+
+    match /videos/{videoId} {
+      allow read: if true;
+      allow write: if isAdmin() && isValidId(videoId) && isValidVideo(incoming());
+    }
+
+    match /gallery/{imageId} {
+      allow read: if true;
+      allow write: if isAdmin() && isValidId(imageId) && isValidGalleryImage(incoming());
+    }
+
+    // Admins Collection
+    match /admins/{adminId} {
+      // Only the specific initial admin email or existing admins can manage this
+      allow read: if isSignedIn() && (request.auth.uid == adminId || isAdmin());
+      allow write: if false; // Management usually through console for maximum security or restricted admin function
+    }
+  }
+}

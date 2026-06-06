@@ -1,0 +1,8 @@
+{
+  "name": "Remix: AFRICAN ECHO OFFICIAL",
+  "description": "Official website for African Echo - Ugandan singer, songwriter and sonic architect.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

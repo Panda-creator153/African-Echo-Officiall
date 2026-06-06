@@ -1,0 +1,21 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    function isSignedIn() {
+      return request.auth != null;
+    }
+    
+    function isAdmin() {
+      // Note: In Storage rules, we can't easily check Firestore collections without get() being expensive/limited.
+      // But we can check the hardcoded bootstrap email or if the user is authenticated.
+      // Usually we'd want to check if a doc exists in /admins/ but Storage rules integration with Firestore is complex.
+      // For now, we'll use the email check as a bootstrap.
+      return isSignedIn() && (request.auth.token.email == "silinkjay43@gmail.com");
+    }
+
+    match /{allPaths=**} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+  }
+}
