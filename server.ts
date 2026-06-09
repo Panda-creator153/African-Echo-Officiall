@@ -8,10 +8,10 @@ import crypto from "crypto";
 import { createClient } from "@supabase/supabase-js";
 import os from "os";
 
-// Supabase Init & Configuration Loader (Supports environment variables and supabase-config.json)
-let supabaseUrl = process.env.SUPABASE_URL || "";
-let supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY || "";
-let supabaseBucket = process.env.SUPABASE_BUCKET_NAME || "uploads";
+// Supabase Init & Configuration Loader (Supports environment variables and supabase-config.json with hardcoded defaults)
+let supabaseUrl = process.env.SUPABASE_URL || "https://sfnlwvcetlawgstbovui.supabase.co";
+let supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNmbmx3dmNldGxhd2dzdGJvdnVpIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3ODA5OTQyOSwiZXhwIjoyMDkzNjc1NDI5fQ.oXl3ZxafxiKz2EPnbSlca251wflDnFMqyFnPaWEj2Yg";
+let supabaseBucket = process.env.SUPABASE_BUCKET_NAME || "Upload";
 
 const SUPABASE_CONFIG_PATH = path.join(process.cwd(), "supabase-config.json");
 
