@@ -14,18 +14,39 @@ let supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_
 let supabaseBucket = process.env.SUPABASE_BUCKET_NAME || "uploads";
 
 const SUPABASE_CONFIG_PATH = path.join(process.cwd(), "supabase-config.json");
-if (fs.existsSync(SUPABASE_CONFIG_PATH)) {
+
+// If we have them in process.env, proactively write/sync them into supabase-config.json so it gets populated
+if (process.env.SUPABASE_URL || process.env.SUPABASE_ANON_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY) {
+  try {
+    const freshConfig = {
+      supabaseUrl: process.env.SUPABASE_URL || "",
+      supabaseAnonKey: process.env.SUPABASE_ANON_KEY || "",
+      supabaseServiceRoleKey: process.env.SUPABASE_SERVICE_ROLE_KEY || "",
+      supabaseBucketName: process.env.SUPABASE_BUCKET_NAME || "uploads"
+    };
+    fs.writeFileSync(SUPABASE_CONFIG_PATH, JSON.stringify(freshConfig, null, 2), "utf8");
+    console.log("[Supabase Server] Successfully synced environment secrets into supabase-config.json.");
+    
+    // Ensure let variables are also holding these updated values
+    supabaseUrl = freshConfig.supabaseUrl;
+    supabaseKey = freshConfig.supabaseServiceRoleKey || freshConfig.supabaseAnonKey;
+    supabaseBucket = freshConfig.supabaseBucketName;
+  } catch (err: any) {
+    console.warn("[Supabase Server] Failed to save secrets to supabase-config.json:", err.message);
+  }
+} else if (fs.existsSync(SUPABASE_CONFIG_PATH)) {
+  // Otherwise, load them from the file if available
   try {
     const fileContent = fs.readFileSync(SUPABASE_CONFIG_PATH, "utf8");
     const parsedConfig = JSON.parse(fileContent);
     if (parsedConfig) {
-      if (!supabaseUrl && parsedConfig.supabaseUrl) {
+      if (parsedConfig.supabaseUrl) {
         supabaseUrl = parsedConfig.supabaseUrl;
       }
-      if (!supabaseKey) {
-        supabaseKey = parsedConfig.supabaseServiceRoleKey || parsedConfig.supabaseAnonKey || "";
+      if (parsedConfig.supabaseServiceRoleKey || parsedConfig.supabaseAnonKey) {
+        supabaseKey = parsedConfig.supabaseServiceRoleKey || parsedConfig.supabaseAnonKey;
       }
-      if (supabaseBucket === "uploads" && parsedConfig.supabaseBucketName) {
+      if (parsedConfig.supabaseBucketName) {
         supabaseBucket = parsedConfig.supabaseBucketName;
       }
     }
