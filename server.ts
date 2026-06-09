@@ -15,14 +15,17 @@ let supabaseBucket = process.env.SUPABASE_BUCKET_NAME || "Upload";
 
 const SUPABASE_CONFIG_PATH = path.join(process.cwd(), "supabase-config.json");
 
-// If we have them in process.env, proactively write/sync them into supabase-config.json so it gets populated
-if (process.env.SUPABASE_URL || process.env.SUPABASE_ANON_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY) {
+// If we have valid credentials in process.env, proactively write/sync them into supabase-config.json so it gets populated
+const envSupabaseUrl = (process.env.SUPABASE_URL || "").trim();
+const envSupabaseKey = (process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY || "").trim();
+
+if (envSupabaseUrl.startsWith("https://") && envSupabaseKey.length > 10) {
   try {
     const freshConfig = {
-      supabaseUrl: process.env.SUPABASE_URL || "",
+      supabaseUrl: envSupabaseUrl,
       supabaseAnonKey: process.env.SUPABASE_ANON_KEY || "",
       supabaseServiceRoleKey: process.env.SUPABASE_SERVICE_ROLE_KEY || "",
-      supabaseBucketName: process.env.SUPABASE_BUCKET_NAME || "uploads"
+      supabaseBucketName: process.env.SUPABASE_BUCKET_NAME || "Upload"
     };
     fs.writeFileSync(SUPABASE_CONFIG_PATH, JSON.stringify(freshConfig, null, 2), "utf8");
     console.log("[Supabase Server] Successfully synced environment secrets into supabase-config.json.");
@@ -30,7 +33,9 @@ if (process.env.SUPABASE_URL || process.env.SUPABASE_ANON_KEY || process.env.SUP
     // Ensure let variables are also holding these updated values
     supabaseUrl = freshConfig.supabaseUrl;
     supabaseKey = freshConfig.supabaseServiceRoleKey || freshConfig.supabaseAnonKey;
-    supabaseBucket = freshConfig.supabaseBucketName;
+    if (process.env.SUPABASE_BUCKET_NAME) {
+      supabaseBucket = process.env.SUPABASE_BUCKET_NAME;
+    }
   } catch (err: any) {
     console.warn("[Supabase Server] Failed to save secrets to supabase-config.json:", err.message);
   }
