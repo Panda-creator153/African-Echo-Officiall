@@ -452,15 +452,15 @@ async function startServer() {
 
   apiRouter.get("/supabase-status", async (req, res) => {
     try {
-      const hasUrl = !!process.env.SUPABASE_URL;
-      const hasKey = !!(process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY);
+      const hasUrl = !!supabaseUrl;
+      const hasKey = !!supabaseKey;
       const isConfigured = hasUrl && hasKey;
 
       if (!isConfigured) {
         return res.json({
           configured: false,
-          database: { status: "not_configured", details: "SUPABASE_URL or API keys are missing in env setup." },
-          storage: { status: "not_configured", details: "SUPABASE_URL or API keys are missing in env setup." }
+          database: { status: "not_configured", details: "SUPABASE_URL or API keys are missing in env setup and supabase-config.json." },
+          storage: { status: "not_configured", details: "SUPABASE_URL or API keys are missing in env setup and supabase-config.json." }
         });
       }
 
@@ -518,8 +518,8 @@ async function startServer() {
       }
 
       let publicStoragePrefix = "";
-      if (supabase && process.env.SUPABASE_URL) {
-        const cleanUrl = process.env.SUPABASE_URL.replace(/\/$/, "");
+      if (supabase && supabaseUrl) {
+        const cleanUrl = supabaseUrl.replace(/\/$/, "");
         publicStoragePrefix = `${cleanUrl}/storage/v1/object/public/${supabaseBucket}`;
       }
 
