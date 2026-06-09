@@ -3,6 +3,7 @@ import { motion } from 'motion/react';
 import { useContent } from '../context/ContentContext';
 import { Music, Mic2, Heart, Award } from 'lucide-react';
 import SEO from '../components/SEO';
+import { getClientPlaceholderSvg } from '../utils/imageFallback';
 
 const About = () => {
   const { content, loading } = useContent();
@@ -70,6 +71,10 @@ const About = () => {
               src={content.images.portrait || null}
               alt={`Portrait of ${content.artistName} - Ugandan Singer & Songwriter`}
               className="w-full h-full object-cover grayscale opacity-60 hover:opacity-100 hover:grayscale-0 transition-all duration-700"
+              onError={(e) => {
+                e.currentTarget.onerror = null;
+                e.currentTarget.src = getClientPlaceholderSvg(content.images.portrait || '', `portrait`);
+              }}
             />
             <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent" />
           </motion.div>

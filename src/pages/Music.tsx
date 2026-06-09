@@ -5,6 +5,7 @@ import { useMusic } from '../context/MusicContext';
 import { useContent } from '../context/ContentContext';
 import Rating from '../components/Rating';
 import SEO from '../components/SEO';
+import { getClientPlaceholderSvg } from '../utils/imageFallback';
 
 const Music = () => {
   const { playTrack, currentTrack, isPlaying, ratings, rateTrack, addToPlaylist, removeFromPlaylist, playlist } = useMusic();
@@ -223,6 +224,10 @@ const Music = () => {
                             alt="" 
                             className="w-full h-full object-cover rounded-full" 
                             referrerPolicy="no-referrer"
+                            onError={(e) => {
+                              e.currentTarget.onerror = null;
+                              e.currentTarget.src = getClientPlaceholderSvg(currentAlbum.coverUrl || '', currentAlbum.title);
+                            }}
                           />
                         ) : (
                           <div className="w-full h-full bg-accent/20 rounded-full flex items-center justify-center">
@@ -244,6 +249,10 @@ const Music = () => {
                         alt={`${content.artistName} Album - ${currentAlbum.title}`}
                         className="w-full h-full object-cover"
                         referrerPolicy="no-referrer"
+                        onError={(e) => {
+                          e.currentTarget.onerror = null;
+                          e.currentTarget.src = getClientPlaceholderSvg(currentAlbum.coverUrl || '', currentAlbum.title);
+                        }}
                       />
                       <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent flex flex-col justify-between p-8 opacity-0 group-hover/vinyl:opacity-100 transition-opacity duration-500">
                          <div className="flex justify-end">
@@ -704,6 +713,10 @@ const Music = () => {
                             src={track.coverUrl || null} 
                             alt={`${track.title} by ${track.artist}`}
                             className="w-12 h-12 rounded-lg object-cover" 
+                            onError={(e) => {
+                              e.currentTarget.onerror = null;
+                              e.currentTarget.src = getClientPlaceholderSvg(track.coverUrl || '', track.title);
+                            }}
                           />
                           <div className={`w-10 h-10 rounded-lg flex items-center justify-center transition-all ${
                             currentTrack?.id === track.id ? 'bg-accent scale-110 shadow-[0_0_20px_rgba(var(--accent-rgb),0.4)]' : 'bg-white/5 group-hover:bg-accent'
@@ -835,6 +848,10 @@ const Music = () => {
                         alt={`${album.title} Release Cover`}
                         className="w-full h-full object-cover group-hover/card:scale-105 transition-transform duration-700 ease-out" 
                         referrerPolicy="no-referrer"
+                        onError={(e) => {
+                          e.currentTarget.onerror = null;
+                          e.currentTarget.src = getClientPlaceholderSvg(album.coverUrl || '', album.title);
+                        }}
                       />
                       <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent opacity-60 group-hover/card:opacity-90 transition-opacity" />
                       

@@ -8,10 +8,31 @@ import crypto from "crypto";
 import { createClient } from "@supabase/supabase-js";
 import os from "os";
 
-// Supabase Init
-const supabaseUrl = process.env.SUPABASE_URL;
-const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY;
-const supabaseBucket = process.env.SUPABASE_BUCKET_NAME || "uploads";
+// Supabase Init & Configuration Loader (Supports environment variables and supabase-config.json)
+let supabaseUrl = process.env.SUPABASE_URL || "";
+let supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY || "";
+let supabaseBucket = process.env.SUPABASE_BUCKET_NAME || "uploads";
+
+const SUPABASE_CONFIG_PATH = path.join(process.cwd(), "supabase-config.json");
+if (fs.existsSync(SUPABASE_CONFIG_PATH)) {
+  try {
+    const fileContent = fs.readFileSync(SUPABASE_CONFIG_PATH, "utf8");
+    const parsedConfig = JSON.parse(fileContent);
+    if (parsedConfig) {
+      if (!supabaseUrl && parsedConfig.supabaseUrl) {
+        supabaseUrl = parsedConfig.supabaseUrl;
+      }
+      if (!supabaseKey) {
+        supabaseKey = parsedConfig.supabaseServiceRoleKey || parsedConfig.supabaseAnonKey || "";
+      }
+      if (supabaseBucket === "uploads" && parsedConfig.supabaseBucketName) {
+        supabaseBucket = parsedConfig.supabaseBucketName;
+      }
+    }
+  } catch (error: any) {
+    console.warn("[Supabase Server] Failed to read supabase-config.json:", error.message || error);
+  }
+}
 
 const supabase = (supabaseUrl && supabaseKey)
   ? createClient(supabaseUrl, supabaseKey)

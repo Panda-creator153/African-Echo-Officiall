@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { useContent } from '../context/ContentContext';
 import { X } from 'lucide-react';
 import SEO from '../components/SEO';
+import { getClientPlaceholderSvg } from '../utils/imageFallback';
 
 const Gallery = () => {
   const { content, loading } = useContent();
@@ -57,6 +58,10 @@ const Gallery = () => {
                 src={img.url || null}
                 alt={img.altText || `${content.artistName} Gallery Image ${idx + 1}`}
                 className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110 grayscale hover:grayscale-0"
+                onError={(e) => {
+                  e.currentTarget.onerror = null;
+                  e.currentTarget.src = getClientPlaceholderSvg(img.url || '', img.altText || `Gallery ${idx}`);
+                }}
               />
               <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col justify-end p-8">
                  <p className="text-[10px] font-bold tracking-[0.3em] text-accent mb-2 uppercase opacity-70">
@@ -104,6 +109,10 @@ const Gallery = () => {
                     src={selectedImage.url || null}
                     alt={selectedImage.altText || selectedImage.caption}
                     className="w-full h-full object-contain rounded-2xl shadow-2xl"
+                    onError={(e) => {
+                      e.currentTarget.onerror = null;
+                      e.currentTarget.src = getClientPlaceholderSvg(selectedImage.url || '', selectedImage.caption || selectedImage.altText);
+                    }}
                   />
                 </div>
                 

@@ -6,6 +6,7 @@ import { useContent } from '../context/ContentContext';
 import Newsletter from '../components/Newsletter';
 import SEO from '../components/SEO';
 import VideoGallery from '../components/VideoGallery';
+import { getClientPlaceholderSvg } from '../utils/imageFallback';
 
 const MusicTrackSkeleton = () => (
   <div className="animate-pulse">
@@ -60,6 +61,10 @@ const Home = () => {
             src={content.images.hero || null}
             alt={`${content.artistName} - Soulful Ugandan Singer & Songwriter Hero Background`}
             className="w-full h-full object-cover"
+            onError={(e) => {
+              e.currentTarget.onerror = null;
+              e.currentTarget.src = getClientPlaceholderSvg(content.images.hero || '', `${content.artistName} - Soulful Ugandan Singer & Songwriter Hero Background`);
+            }}
           />
           <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-black/40 to-black" />
         </motion.div>
@@ -141,6 +146,10 @@ const Home = () => {
                   src={track.coverUrl || null}
                   alt={track.title}
                   className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
+                  onError={(e) => {
+                    e.currentTarget.onerror = null;
+                    e.currentTarget.src = getClientPlaceholderSvg(track.coverUrl || '', track.title);
+                  }}
                 />
                 <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                   <div className="w-16 h-16 rounded-full bg-white text-black flex items-center justify-center transform scale-90 group-hover:scale-100 transition-transform">
@@ -167,6 +176,10 @@ const Home = () => {
               src={content.images.portrait || null}
               alt="Portrait"
               className="rounded-[40px] shadow-2xl grayscale hover:grayscale-0 transition-all duration-1000"
+              onError={(e) => {
+                e.currentTarget.onerror = null;
+                e.currentTarget.src = getClientPlaceholderSvg(content.images.portrait || '', 'portrait');
+              }}
             />
           </motion.div>
           
@@ -270,6 +283,10 @@ const Home = () => {
                   src={img.url || null}
                   alt={img.altText || `Gallery ${idx}`}
                   className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110 grayscale group-hover:grayscale-0"
+                  onError={(e) => {
+                    e.currentTarget.onerror = null;
+                    e.currentTarget.src = getClientPlaceholderSvg(img.url || '', img.altText || `Gallery ${idx}`);
+                  }}
                 />
                 <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity" />
               </motion.div>

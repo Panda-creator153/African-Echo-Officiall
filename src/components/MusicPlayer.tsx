@@ -7,6 +7,7 @@ import { ARTIST_NAME } from '../constants';
 import Rating from './Rating';
 import TrackQueue from './TrackQueue';
 import Visualizer from './Visualizer';
+import { getClientPlaceholderSvg } from '../utils/imageFallback';
 
 const MusicPlayer = () => {
   const { 
@@ -98,6 +99,10 @@ const MusicPlayer = () => {
                 src={currentTrack.coverUrl || null}
                 alt={`Now playing: ${currentTrack.title} by ${currentTrack.artist}`}
                 className="w-10 h-10 rounded object-cover shadow-lg transition-transform duration-500 group-hover/cover:scale-105"
+                onError={(e) => {
+                  e.currentTarget.onerror = null;
+                  e.currentTarget.src = getClientPlaceholderSvg(currentTrack.coverUrl || '', currentTrack.title);
+                }}
               />
               {isPlaying && (
                 <div className="absolute -bottom-0.5 -right-0.5 flex items-end space-x-0.5 h-2.5 bg-black/60 backdrop-blur-md p-0.5 rounded-sm">
