@@ -125,20 +125,39 @@ const Admin = () => {
     setLoadingSubmissions(true);
     setSubmissionsError(null);
     try {
-      const bQuery = query(collection(db, 'bookings'), orderBy('createdAt', 'desc'));
-      const bSnap = await getDocs(bQuery);
-      setBookingRequests(bSnap.docs.map(d => ({ id: d.id, ...d.data() })));
+      const token = localStorage.getItem('admin_token');
+      const headers: HeadersInit = {
+        'Accept': 'application/json',
+        'Authorization': `Bearer ${token}`
+      };
 
-      const mQuery = query(collection(db, 'contacts'), orderBy('createdAt', 'desc'));
-      const mSnap = await getDocs(mQuery);
-      setContactMessages(mSnap.docs.map(d => ({ id: d.id, ...d.data() })));
+      // 1. Fetch bookings
+      const bRes = await fetch('/api/admin/bookings', { headers });
+      if (!bRes.ok) {
+        throw new Error(await bRes.text() || `Failed to fetch bookings (${bRes.status})`);
+      }
+      const bData = await bRes.json();
+      setBookingRequests(bData);
 
-      const sQuery = query(collection(db, 'subscribers'), orderBy('createdAt', 'desc'));
-      const sSnap = await getDocs(sQuery);
-      setNewsletterSubscribers(sSnap.docs.map(d => ({ id: d.id, ...d.data() })));
+      // 2. Fetch contacts
+      const cRes = await fetch('/api/admin/contacts', { headers });
+      if (!cRes.ok) {
+        throw new Error(await cRes.text() || `Failed to fetch contacts (${cRes.status})`);
+      }
+      const cData = await cRes.json();
+      setContactMessages(cData);
+
+      // 3. Fetch subscribers
+      const sRes = await fetch('/api/admin/subscribers', { headers });
+      if (!sRes.ok) {
+        throw new Error(await sRes.text() || `Failed to fetch subscribers (${sRes.status})`);
+      }
+      const sData = await sRes.json();
+      setNewsletterSubscribers(sData);
+
     } catch (error: any) {
-      console.warn('Error fetching inquiries:', error);
-      setSubmissionsError('Inquiries restricted. Connect your admin credential account to unlock.');
+      console.warn('Error fetching inquiries from proxy API:', error);
+      setSubmissionsError(error.message || 'Inquiries restricted. Admin session token is expired or unauthorized.');
     } finally {
       setLoadingSubmissions(false);
     }
@@ -151,19 +170,24 @@ const Admin = () => {
   }, [isAdmin, firebaseUser]);
 
   const handleFirebaseAuth = async () => {
-    const provider = new GoogleAuthProvider();
-    try {
-      await signInWithPopup(auth, provider);
-      showNotification('Authenticated with Firestore Database!', 'success');
-    } catch (error: any) {
-      showNotification(`Authentication failed: ${error.message}`, 'error');
-    }
+    showNotification('Inquiries are unlocked seamlessly via your Admin token!', 'success');
+    fetchSubmissions();
   };
 
   const handleUpdateBookingStatus = async (id: string, newStatus: string) => {
     try {
-      const docRef = doc(db, 'bookings', id);
-      await updateDoc(docRef, { status: newStatus });
+      const token = localStorage.getItem('admin_token');
+      const res = await fetch(`/api/admin/bookings/${id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ status: newStatus })
+      });
+      if (!res.ok) {
+        throw new Error(await res.text() || 'Failed to update booking status');
+      }
       showNotification(`Status modified to ${newStatus}!`, 'success');
       fetchSubmissions();
     } catch (err: any) {
@@ -174,8 +198,16 @@ const Admin = () => {
   const handleDeleteBooking = async (id: string) => {
     if (!window.confirm('Delete this booking inquiry permanently?')) return;
     try {
-      const docRef = doc(db, 'bookings', id);
-      await deleteDoc(docRef);
+      const token = localStorage.getItem('admin_token');
+      const res = await fetch(`/api/admin/bookings/${id}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      if (!res.ok) {
+        throw new Error(await res.text() || 'Failed to delete booking');
+      }
       showNotification(`Booking deleted.`, 'success');
       fetchSubmissions();
     } catch (err: any) {
@@ -186,8 +218,16 @@ const Admin = () => {
   const handleDeleteContactMessage = async (id: string) => {
     if (!window.confirm('Delete this contact message permanently?')) return;
     try {
-      const docRef = doc(db, 'contacts', id);
-      await deleteDoc(docRef);
+      const token = localStorage.getItem('admin_token');
+      const res = await fetch(`/api/admin/contacts/${id}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      if (!res.ok) {
+        throw new Error(await res.text() || 'Failed to delete contact message');
+      }
       showNotification(`Message deleted.`, 'success');
       fetchSubmissions();
     } catch (err: any) {
@@ -198,8 +238,16 @@ const Admin = () => {
   const handleDeleteSubscriber = async (id: string) => {
     if (!window.confirm('Remove this email subscription?')) return;
     try {
-      const docRef = doc(db, 'subscribers', id);
-      await deleteDoc(docRef);
+      const token = localStorage.getItem('admin_token');
+      const res = await fetch(`/api/admin/subscribers/${id}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      if (!res.ok) {
+        throw new Error(await res.text() || 'Failed to delete subscriber');
+      }
       showNotification(`Subscriber removed.`, 'success');
       fetchSubmissions();
     } catch (err: any) {

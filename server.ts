@@ -7,6 +7,7 @@ import { createServer as createViteServer } from "vite";
 import crypto from "crypto";
 import { createClient } from "@supabase/supabase-js";
 import os from "os";
+import admin from "firebase-admin";
 
 // Supabase Init & Configuration Loader (Supports environment variables and supabase-config.json with hardcoded defaults)
 let supabaseUrl = process.env.SUPABASE_URL || "https://sfnlwvcetlawgstbovui.supabase.co";
@@ -68,6 +69,29 @@ if (supabase) {
   console.log("[Supabase Server] Core client initialized.");
 } else {
   console.warn("[Supabase Server] Keys missing in environment. Local fallback active.");
+}
+
+// --- Firebase Admin SDK Setup ---
+const FIREBASE_CONFIG_PATH = path.join(process.cwd(), "firebase-applet-config.json");
+let firebaseAdminDb: any = null;
+
+try {
+  if (fs.existsSync(FIREBASE_CONFIG_PATH)) {
+    const configData = JSON.parse(fs.readFileSync(FIREBASE_CONFIG_PATH, "utf-8"));
+    if (configData && configData.projectId) {
+      if (admin.apps.length === 0) {
+        admin.initializeApp({
+          projectId: configData.projectId
+        });
+      }
+      firebaseAdminDb = admin.firestore(configData.firestoreDatabaseId || undefined);
+      console.log(`[Firebase Server Admin] Successfully initialized for projectId: ${configData.projectId}, DB: ${configData.firestoreDatabaseId || "default"}`);
+    }
+  } else {
+    console.warn("[Firebase Server Admin] Config file firebase-applet-config.json not found.");
+  }
+} catch (e: any) {
+  console.error("[Firebase Server Admin] Exception during init:", e.message);
 }
 
 async function ensureSupabaseBucket() {
@@ -652,6 +676,130 @@ async function startServer() {
     const { email } = req.body;
     if (!email || !email.includes("@")) return res.status(400).json({ error: "Invalid email" });
     res.json({ success: true });
+  });
+
+  // --- Admin Firebase Submissions Proxies ---
+  const getCollectionSorted = async (collectionName: string) => {
+    if (!firebaseAdminDb) throw new Error("Firebase Admin is not initialized");
+    const collectionRef = firebaseAdminDb.collection(collectionName);
+    let docsArr: any[] = [];
+    try {
+      const snapshot = await collectionRef.orderBy("createdAt", "desc").get();
+      docsArr = snapshot.docs;
+    } catch (err: any) {
+      console.warn(`[Firebase Server] Missing index or query limit for '${collectionName}' orderBy, sorting in memory...`);
+      const snapshot = await collectionRef.get();
+      docsArr = snapshot.docs;
+      docsArr.sort((a, b) => {
+        const timeA = a.data().createdAt?.seconds || a.data().createdAt?._seconds || 0;
+        const timeB = b.data().createdAt?.seconds || b.data().createdAt?._seconds || 0;
+        return timeB - timeA;
+      });
+    }
+    return docsArr.map(doc => {
+      const data = doc.data();
+      for (const key of Object.keys(data)) {
+        if (data[key] && typeof data[key].toDate === "function") {
+          const date = data[key].toDate();
+          data[key] = {
+            seconds: Math.floor(date.getTime() / 1000),
+            nanoseconds: (date.getTime() % 1000) * 1e6
+          };
+        } else if (data[key] && typeof data[key] === "object") {
+          const sec = data[key].seconds ?? data[key]._seconds;
+          const nano = data[key].nanoseconds ?? data[key]._nanoseconds;
+          if (sec !== undefined) {
+            data[key] = {
+              seconds: sec,
+              nanoseconds: nano ?? 0
+            };
+          }
+        }
+      }
+      return { id: doc.id, ...data };
+    });
+  };
+
+  // 1. Bookings Endpoints
+  apiRouter.get("/admin/bookings", requireAdmin, async (req, res) => {
+    try {
+      const bookings = await getCollectionSorted("bookings");
+      res.json(bookings);
+    } catch (err: any) {
+      console.error("[API/admin/bookings] Error:", err);
+      res.status(500).json({ error: err.message || "Failed to load bookings" });
+    }
+  });
+
+  apiRouter.put("/admin/bookings/:id", requireAdmin, async (req, res) => {
+    try {
+      if (!firebaseAdminDb) return res.status(500).json({ error: "Firebase Admin is not initialized" });
+      const { id } = req.params;
+      const { status } = req.body;
+      await firebaseAdminDb.collection("bookings").doc(id).update({ status });
+      res.json({ success: true });
+    } catch (err: any) {
+      console.error("[API/admin/bookings/PUT] Error:", err);
+      res.status(500).json({ error: err.message || "Failed to update booking" });
+    }
+  });
+
+  apiRouter.delete("/admin/bookings/:id", requireAdmin, async (req, res) => {
+    try {
+      if (!firebaseAdminDb) return res.status(500).json({ error: "Firebase Admin is not initialized" });
+      const { id } = req.params;
+      await firebaseAdminDb.collection("bookings").doc(id).delete();
+      res.json({ success: true });
+    } catch (err: any) {
+      console.error("[API/admin/bookings/DELETE] Error:", err);
+      res.status(500).json({ error: err.message || "Failed to delete booking" });
+    }
+  });
+
+  // 2. Contacts Endpoints
+  apiRouter.get("/admin/contacts", requireAdmin, async (req, res) => {
+    try {
+      const contacts = await getCollectionSorted("contacts");
+      res.json(contacts);
+    } catch (err: any) {
+      console.error("[API/admin/contacts] Error:", err);
+      res.status(500).json({ error: err.message || "Failed to load contacts" });
+    }
+  });
+
+  apiRouter.delete("/admin/contacts/:id", requireAdmin, async (req, res) => {
+    try {
+      if (!firebaseAdminDb) return res.status(500).json({ error: "Firebase Admin is not initialized" });
+      const { id } = req.params;
+      await firebaseAdminDb.collection("contacts").doc(id).delete();
+      res.json({ success: true });
+    } catch (err: any) {
+      console.error("[API/admin/contacts/DELETE] Error:", err);
+      res.status(500).json({ error: err.message || "Failed to delete contact" });
+    }
+  });
+
+  // 3. Newsletter Subscribers Endpoints
+  apiRouter.get("/admin/subscribers", requireAdmin, async (req, res) => {
+    try {
+      const subscribers = await getCollectionSorted("subscribers");
+      res.json(subscribers);
+    } catch (err: any) {
+      console.error("[API/admin/subscribers] Error:", err);
+      res.status(500).json({ error: err.message || "Failed to load subscribers" });
+    }
+  });
+
+  apiRouter.delete("/admin/subscribers/:id", requireAdmin, async (req, res) => {
+    try {
+      if (!firebaseAdminDb) return res.status(500).json({ error: "Firebase Admin is not initialized" });
+      const { id } = req.params;
+      await firebaseAdminDb.collection("subscribers").doc(id).delete();
+      res.json({ success: true });
+    } catch (err: any) {
+      console.error("[API/admin/subscribers/DELETE] Error:", err);
+      res.status(500).json({ error: err.message || "Failed to delete subscriber" });
+    }
   });
 
   apiRouter.get("/check-files", async (req, res) => {
