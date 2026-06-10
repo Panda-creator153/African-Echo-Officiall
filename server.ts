@@ -672,10 +672,154 @@ async function startServer() {
     }
   });
 
-  apiRouter.post("/newsletter", (req, res) => {
-    const { email } = req.body;
-    if (!email || !email.includes("@")) return res.status(400).json({ error: "Invalid email" });
-    res.json({ success: true });
+  // --- Local Fallback Database Helpers ---
+  const BOOKINGS_FILE = path.join(process.cwd(), "submissions-bookings.json");
+  const CONTACTS_FILE = path.join(process.cwd(), "submissions-contacts.json");
+  const SUBSCRIBERS_FILE = path.join(process.cwd(), "submissions-subscribers.json");
+
+  const readJsonFile = (filePath: string): any[] => {
+    try {
+      if (fs.existsSync(filePath)) {
+        return JSON.parse(fs.readFileSync(filePath, "utf8"));
+      }
+    } catch (err: any) {
+      console.warn(`[Local Fallback Store] Error reading from ${filePath}:`, err.message);
+    }
+    return [];
+  };
+
+  const writeJsonFile = (filePath: string, data: any[]): void => {
+    try {
+      fs.writeFileSync(filePath, JSON.stringify(data, null, 2), "utf8");
+    } catch (err: any) {
+      console.error(`[Local Fallback Store] Error writing to ${filePath}:`, err.message);
+    }
+  };
+
+  apiRouter.post("/bookings", async (req, res) => {
+    try {
+      const data = req.body;
+      if (!data || !data.name || !data.email) {
+        return res.status(400).json({ error: "Missing required booking details (name, email)" });
+      }
+      
+      const newBooking = {
+        id: data.id || `book-${Date.now()}`,
+        name: String(data.name).trim(),
+        email: String(data.email).trim(),
+        eventType: data.eventType || 'FESTIVAL',
+        date: data.date || '',
+        message: String(data.message || '').trim(),
+        status: data.status || 'pending',
+        createdAt: data.createdAt || new Date().toISOString()
+      };
+
+      const bookings = readJsonFile(BOOKINGS_FILE);
+      bookings.unshift(newBooking);
+      writeJsonFile(BOOKINGS_FILE, bookings);
+
+      // Optionally write to Firestore in background if active
+      if (firebaseAdminDb) {
+        try {
+          const timestamp = newBooking.createdAt ? new Date(newBooking.createdAt) : new Date();
+          await firebaseAdminDb.collection("bookings").doc(newBooking.id).set({
+            ...newBooking,
+            createdAt: timestamp
+          });
+        } catch (fErr: any) {
+          console.warn("[Firestore Server Sync] Failed to sync booking in background:", fErr.message);
+        }
+      }
+
+      res.json({ success: true, booking: newBooking });
+    } catch (err: any) {
+      console.error("[API/bookings/POST] Error:", err);
+      res.status(500).json({ error: err.message || "Failed to submit booking" });
+    }
+  });
+
+  apiRouter.post("/contacts", async (req, res) => {
+    try {
+      const data = req.body;
+      if (!data || !data.name || !data.email || !data.message) {
+        return res.status(400).json({ error: "Missing required fields (name, email, message)" });
+      }
+
+      const newContact = {
+        id: data.id || `msg-${Date.now()}`,
+        name: String(data.name).trim(),
+        email: String(data.email).trim(),
+        subject: String(data.subject || '').trim(),
+        message: String(data.message).trim(),
+        createdAt: data.createdAt || new Date().toISOString()
+      };
+
+      const contacts = readJsonFile(CONTACTS_FILE);
+      contacts.unshift(newContact);
+      writeJsonFile(CONTACTS_FILE, contacts);
+
+      // Optionally write to Firestore in background if active
+      if (firebaseAdminDb) {
+        try {
+          const timestamp = newContact.createdAt ? new Date(newContact.createdAt) : new Date();
+          await firebaseAdminDb.collection("contacts").doc(newContact.id).set({
+            ...newContact,
+            createdAt: timestamp
+          });
+        } catch (fErr: any) {
+          console.warn("[Firestore Server Sync] Failed to sync contact in background:", fErr.message);
+        }
+      }
+
+      res.json({ success: true, contact: newContact });
+    } catch (err: any) {
+      console.error("[API/contacts/POST] Error:", err);
+      res.status(500).json({ error: err.message || "Failed to submit contact message" });
+    }
+  });
+
+  apiRouter.post("/newsletter", async (req, res) => {
+    try {
+      const { email } = req.body;
+      if (!email || !email.includes("@")) {
+        return res.status(400).json({ error: "Invalid email" });
+      }
+
+      const sanitizedEmail = String(email).trim().toLowerCase();
+      const subscriberId = req.body.id || `sub-${sanitizedEmail.replace(/[^a-zA-Z0-9_\-+.]/g, '_')}`;
+
+      const newSubscriber = {
+        id: subscriberId,
+        email: sanitizedEmail,
+        createdAt: new Date().toISOString()
+      };
+
+      const subscribers = readJsonFile(SUBSCRIBERS_FILE);
+      // Avoid duplicate subscription locally
+      if (!subscribers.some(sub => sub.email === sanitizedEmail)) {
+        subscribers.unshift(newSubscriber);
+        writeJsonFile(SUBSCRIBERS_FILE, subscribers);
+      }
+
+      // Optionally write to Firestore in background if active
+      if (firebaseAdminDb) {
+        try {
+          const timestamp = new Date();
+          await firebaseAdminDb.collection("subscribers").doc(subscriberId).set({
+            id: subscriberId,
+            email: sanitizedEmail,
+            createdAt: timestamp
+          });
+        } catch (fErr: any) {
+          console.warn("[Firestore Server Sync] Failed to sync subscriber in background:", fErr.message);
+        }
+      }
+
+      res.json({ success: true });
+    } catch (err: any) {
+      console.error("[API/newsletter/POST] Error:", err);
+      res.status(500).json({ error: err.message || "Failed to subscribe" });
+    }
   });
 
   // --- Admin Firebase Submissions Proxies ---
@@ -723,20 +867,47 @@ async function startServer() {
   // 1. Bookings Endpoints
   apiRouter.get("/admin/bookings", requireAdmin, async (req, res) => {
     try {
-      const bookings = await getCollectionSorted("bookings");
+      let bookings: any[] = [];
+      if (firebaseAdminDb) {
+        try {
+          bookings = await getCollectionSorted("bookings");
+        } catch (fbErr: any) {
+          console.warn("[API/admin/bookings] Firebase Admin retrieval failed, falling back to local storage:", fbErr.message);
+        }
+      }
+      
+      if (bookings.length === 0) {
+        bookings = readJsonFile(BOOKINGS_FILE);
+      }
       res.json(bookings);
     } catch (err: any) {
       console.error("[API/admin/bookings] Error:", err);
-      res.status(500).json({ error: err.message || "Failed to load bookings" });
+      res.json(readJsonFile(BOOKINGS_FILE));
     }
   });
 
   apiRouter.put("/admin/bookings/:id", requireAdmin, async (req, res) => {
     try {
-      if (!firebaseAdminDb) return res.status(500).json({ error: "Firebase Admin is not initialized" });
       const { id } = req.params;
       const { status } = req.body;
-      await firebaseAdminDb.collection("bookings").doc(id).update({ status });
+
+      // Update local storage
+      const bookings = readJsonFile(BOOKINGS_FILE);
+      const index = bookings.findIndex(b => b.id === id);
+      if (index !== -1) {
+        bookings[index].status = status;
+        writeJsonFile(BOOKINGS_FILE, bookings);
+      }
+
+      // Sync with Firestore in background if active
+      if (firebaseAdminDb) {
+        try {
+          await firebaseAdminDb.collection("bookings").doc(id).update({ status });
+        } catch (fErr: any) {
+          console.warn("[Firestore Server sync] Bookings status PUT missed in background:", fErr.message);
+        }
+      }
+
       res.json({ success: true });
     } catch (err: any) {
       console.error("[API/admin/bookings/PUT] Error:", err);
@@ -746,9 +917,22 @@ async function startServer() {
 
   apiRouter.delete("/admin/bookings/:id", requireAdmin, async (req, res) => {
     try {
-      if (!firebaseAdminDb) return res.status(500).json({ error: "Firebase Admin is not initialized" });
       const { id } = req.params;
-      await firebaseAdminDb.collection("bookings").doc(id).delete();
+
+      // Update local storage
+      let bookings = readJsonFile(BOOKINGS_FILE);
+      bookings = bookings.filter(b => b.id !== id);
+      writeJsonFile(BOOKINGS_FILE, bookings);
+
+      // Sync with Firestore in background if active
+      if (firebaseAdminDb) {
+        try {
+          await firebaseAdminDb.collection("bookings").doc(id).delete();
+        } catch (fErr: any) {
+          console.warn("[Firestore Server sync] Bookings doc DELETE missed in background:", fErr.message);
+        }
+      }
+
       res.json({ success: true });
     } catch (err: any) {
       console.error("[API/admin/bookings/DELETE] Error:", err);
@@ -759,19 +943,43 @@ async function startServer() {
   // 2. Contacts Endpoints
   apiRouter.get("/admin/contacts", requireAdmin, async (req, res) => {
     try {
-      const contacts = await getCollectionSorted("contacts");
+      let contacts: any[] = [];
+      if (firebaseAdminDb) {
+        try {
+          contacts = await getCollectionSorted("contacts");
+        } catch (fbErr: any) {
+          console.warn("[API/admin/contacts] Firebase Admin retrieval failed, falling back to local storage:", fbErr.message);
+        }
+      }
+      
+      if (contacts.length === 0) {
+        contacts = readJsonFile(CONTACTS_FILE);
+      }
       res.json(contacts);
     } catch (err: any) {
       console.error("[API/admin/contacts] Error:", err);
-      res.status(500).json({ error: err.message || "Failed to load contacts" });
+      res.json(readJsonFile(CONTACTS_FILE));
     }
   });
 
   apiRouter.delete("/admin/contacts/:id", requireAdmin, async (req, res) => {
     try {
-      if (!firebaseAdminDb) return res.status(500).json({ error: "Firebase Admin is not initialized" });
       const { id } = req.params;
-      await firebaseAdminDb.collection("contacts").doc(id).delete();
+
+      // Update local storage
+      let contacts = readJsonFile(CONTACTS_FILE);
+      contacts = contacts.filter(c => c.id !== id);
+      writeJsonFile(CONTACTS_FILE, contacts);
+
+      // Sync with Firestore in background
+      if (firebaseAdminDb) {
+        try {
+          await firebaseAdminDb.collection("contacts").doc(id).delete();
+        } catch (fErr: any) {
+          console.warn("[Firestore Server sync] Contact doc DELETE missed in background:", fErr.message);
+        }
+      }
+
       res.json({ success: true });
     } catch (err: any) {
       console.error("[API/admin/contacts/DELETE] Error:", err);
@@ -782,19 +990,43 @@ async function startServer() {
   // 3. Newsletter Subscribers Endpoints
   apiRouter.get("/admin/subscribers", requireAdmin, async (req, res) => {
     try {
-      const subscribers = await getCollectionSorted("subscribers");
+      let subscribers: any[] = [];
+      if (firebaseAdminDb) {
+        try {
+          subscribers = await getCollectionSorted("subscribers");
+        } catch (fbErr: any) {
+          console.warn("[API/admin/subscribers] Firebase Admin retrieval failed, falling back to local storage:", fbErr.message);
+        }
+      }
+      
+      if (subscribers.length === 0) {
+        subscribers = readJsonFile(SUBSCRIBERS_FILE);
+      }
       res.json(subscribers);
     } catch (err: any) {
       console.error("[API/admin/subscribers] Error:", err);
-      res.status(500).json({ error: err.message || "Failed to load subscribers" });
+      res.json(readJsonFile(SUBSCRIBERS_FILE));
     }
   });
 
   apiRouter.delete("/admin/subscribers/:id", requireAdmin, async (req, res) => {
     try {
-      if (!firebaseAdminDb) return res.status(500).json({ error: "Firebase Admin is not initialized" });
       const { id } = req.params;
-      await firebaseAdminDb.collection("subscribers").doc(id).delete();
+
+      // Update local storage
+      let subscribers = readJsonFile(SUBSCRIBERS_FILE);
+      subscribers = subscribers.filter(s => s.id !== id);
+      writeJsonFile(SUBSCRIBERS_FILE, subscribers);
+
+      // Sync with Firestore in background
+      if (firebaseAdminDb) {
+        try {
+          await firebaseAdminDb.collection("subscribers").doc(id).delete();
+        } catch (fErr: any) {
+          console.warn("[Firestore Server sync] Subscriber doc DELETE missed in background:", fErr.message);
+        }
+      }
+
       res.json({ success: true });
     } catch (err: any) {
       console.error("[API/admin/subscribers/DELETE] Error:", err);

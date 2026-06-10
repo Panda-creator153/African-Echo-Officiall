@@ -163,6 +163,24 @@ const Admin = () => {
     }
   };
 
+  const formatDate = (createdAt: any) => {
+    if (!createdAt) return 'Just now';
+    if (typeof createdAt === 'object') {
+      const sec = createdAt.seconds ?? createdAt._seconds;
+      if (sec !== undefined) {
+        return new Date(sec * 1000).toLocaleString();
+      }
+    }
+    // Try parsing as ISO string / text
+    try {
+      const d = new Date(createdAt);
+      if (!isNaN(d.getTime())) {
+        return d.toLocaleString();
+      }
+    } catch (err) {}
+    return 'Just now';
+  };
+
   useEffect(() => {
     if (isAdmin) {
       fetchSubmissions();
@@ -956,6 +974,9 @@ const Admin = () => {
                         <p className="text-xs text-secondary max-w-md mx-auto leading-relaxed">
                           Incoming contact messages are written securely to Google Cloud Firestore database. Complete security authentication to load these messages.
                         </p>
+                        <div className="text-xs bg-black/40 border border-white/5 rounded-xl p-3 text-red-400 font-mono text-left break-all max-w-md mx-auto">
+                          Error report: {submissionsError}
+                        </div>
                         <button 
                           onClick={handleFirebaseAuth}
                           className="bg-white hover:bg-accent hover:text-white text-black font-bold tracking-wider px-6 py-3 rounded-full text-[10px] uppercase transition-all"
@@ -981,7 +1002,7 @@ const Admin = () => {
                               <Trash2 className="w-4 h-4" />
                             </button>
                             <span className="text-[10px] font-mono text-secondary">
-                              {msg.createdAt?.seconds ? new Date(msg.createdAt.seconds * 1000).toLocaleString() : 'Just now'}
+                              {formatDate(msg.createdAt)}
                             </span>
                             <div className="grid md:grid-cols-3 gap-4 mt-2 mb-4">
                               <div>
@@ -1043,6 +1064,9 @@ const Admin = () => {
                         <p className="text-xs text-secondary max-w-md mx-auto leading-relaxed font-light">
                           Newsletter signups are written securely to Google Cloud Firestore database. Complete security authentication to load these subscribers.
                         </p>
+                        <div className="text-xs bg-black/40 border border-white/5 rounded-xl p-3 text-red-400 font-mono text-left break-all max-w-md mx-auto">
+                          Error report: {submissionsError}
+                        </div>
                       </div>
                     ) : loadingSubmissions ? (
                       <div className="text-center py-10 text-secondary text-xs">Loading live subscribers from Firestore...</div>
@@ -1057,7 +1081,7 @@ const Admin = () => {
                             <div className="min-w-0">
                               <p className="text-sm font-bold text-white truncate">{sub.email}</p>
                               <p className="text-[9px] font-mono text-secondary mt-1 font-light">
-                                Joined: {sub.createdAt?.seconds ? new Date(sub.createdAt.seconds * 1000).toLocaleString() : 'Just now'}
+                                Joined: {formatDate(sub.createdAt)}
                               </p>
                             </div>
                             <button 
@@ -1156,6 +1180,9 @@ const Admin = () => {
                         <p className="text-xs text-secondary max-w-md mx-auto leading-relaxed">
                           Booking proposals are written securely to Google Cloud Firestore database. Complete security authentication to load these proposals.
                         </p>
+                        <div className="text-xs bg-black/40 border border-white/5 rounded-xl p-3 text-red-400 font-mono text-left break-all max-w-md mx-auto">
+                          Error report: {submissionsError}
+                        </div>
                         <button 
                           onClick={handleFirebaseAuth}
                           className="bg-white hover:bg-accent hover:text-white text-black font-bold tracking-wider px-6 py-3 rounded-full text-[10px] uppercase transition-all"
@@ -1195,7 +1222,7 @@ const Admin = () => {
                               </button>
                             </div>
                             <span className="text-[10px] font-mono text-secondary">
-                              {req.createdAt?.seconds ? new Date(req.createdAt.seconds * 1000).toLocaleString() : 'Just now'}
+                              {formatDate(req.createdAt)}
                             </span>
                             <div className="grid md:grid-cols-4 gap-4 mt-2 mb-4">
                               <div>

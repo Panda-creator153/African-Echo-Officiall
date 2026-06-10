@@ -63,25 +63,58 @@ const Contact = () => {
     const messageDocRef = doc(db, 'contacts', messageId);
 
     try {
-      await setDoc(messageDocRef, {
-        id: messageId,
-        name: formData.name.trim(),
-        email: formData.email.trim(),
-        subject: formData.subject.trim(),
-        message: formData.message.trim(),
-        createdAt: serverTimestamp()
-      });
-      setSubmitStatus('success');
-      setFormData({ name: '', email: '', subject: '', message: '' });
+      let apiSuccess = false;
+      let localErrorMsg = '';
+
+      // 1. Post to Express Server API
+      try {
+        const res = await fetch('/api/contacts', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            id: messageId,
+            name: formData.name.trim(),
+            email: formData.email.trim(),
+            subject: formData.subject.trim(),
+            message: formData.message.trim(),
+            createdAt: new Date().toISOString()
+          })
+        });
+        if (res.ok) {
+          apiSuccess = true;
+        } else {
+          localErrorMsg = await res.text() || 'Failed to submit via API';
+        }
+      } catch (apiErr: any) {
+        console.warn('API contact submission failed, trying direct Firestore fallback:', apiErr);
+        localErrorMsg = apiErr.message;
+      }
+
+      // 2. Post directly to Firestore
+      try {
+        await setDoc(messageDocRef, {
+          id: messageId,
+          name: formData.name.trim(),
+          email: formData.email.trim(),
+          subject: formData.subject.trim(),
+          message: formData.message.trim(),
+          createdAt: serverTimestamp()
+        });
+        apiSuccess = true;
+      } catch (firestoreErr: any) {
+        console.warn('Firestore direct write limited:', firestoreErr.message || firestoreErr);
+      }
+
+      if (apiSuccess) {
+        setSubmitStatus('success');
+        setFormData({ name: '', email: '', subject: '', message: '' });
+      } else {
+        throw new Error(localErrorMsg || 'All submission gateways failed');
+      }
     } catch (err: any) {
       console.error('Error submitting contact form:', err);
       setSubmitStatus('error');
       setErrorMessage('Failed to send your message. Please try again later.');
-      try {
-        handleFirestoreError(err, OperationType.WRITE, `contacts/${messageId}`);
-      } catch (e2) {
-        // Logged helper
-      }
     } finally {
       setIsSubmitting(false);
     }

@@ -28,35 +28,44 @@ const Newsletter = () => {
     const subscriberDocRef = doc(db, 'subscribers', subscriberId);
 
     try {
-      // Write the subscription directly to Firestore "subscribers" collection
-      await setDoc(subscriberDocRef, {
-        id: subscriberId,
-        email: sanitizedEmail,
-        createdAt: serverTimestamp()
-      });
+      let apiSuccess = false;
 
-      // Call the express fallback endpoint
+      // 1. Post to Express Server API
       try {
-        await fetch('/api/newsletter', {
+        const res = await fetch('/api/newsletter', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email: sanitizedEmail }),
+          body: JSON.stringify({ id: subscriberId, email: sanitizedEmail }),
         });
+        if (res.ok) {
+          apiSuccess = true;
+        }
       } catch (apiErr) {
-        console.warn('API notification fallback limited:', apiErr);
+        console.warn('API subscription target failed, trying Firestore direct write:', apiErr);
       }
 
-      setStatus('success');
-      setEmail('');
+      // 2. Post directly to Firestore
+      try {
+        await setDoc(subscriberDocRef, {
+          id: subscriberId,
+          email: sanitizedEmail,
+          createdAt: serverTimestamp()
+        });
+        apiSuccess = true;
+      } catch (firestoreErr: any) {
+        console.warn('Firestore direct write limited:', firestoreErr.message || firestoreErr);
+      }
+
+      if (apiSuccess) {
+        setStatus('success');
+        setEmail('');
+      } else {
+        throw new Error('All subscription gateways failed');
+      }
     } catch (err: any) {
       console.error('Error in newsletter subscription:', err);
       setStatus('error');
       setError('Subscription failed. Please try again.');
-      try {
-        handleFirestoreError(err, OperationType.WRITE, `subscribers/${subscriberId}`);
-      } catch (e2) {
-        // Quiet log
-      }
     }
   };
 

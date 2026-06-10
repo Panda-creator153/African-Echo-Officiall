@@ -55,27 +55,62 @@ const Booking = () => {
     const bookingDocRef = doc(db, 'bookings', bookingId);
 
     try {
-      await setDoc(bookingDocRef, {
-        id: bookingId,
-        name: formData.name.trim(),
-        email: formData.email.trim(),
-        eventType: formData.eventType,
-        date: formData.date,
-        message: formData.message.trim(),
-        status: 'pending',
-        createdAt: serverTimestamp()
-      });
-      setSubmitStatus('success');
-      setFormData({ name: '', email: '', eventType: 'FESTIVAL', date: '', message: '' });
+      let apiSuccess = false;
+      let localErrorMsg = '';
+
+      // 1. Post to Express Server
+      try {
+        const res = await fetch('/api/bookings', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            id: bookingId,
+            name: formData.name.trim(),
+            email: formData.email.trim(),
+            eventType: formData.eventType,
+            date: formData.date,
+            message: formData.message.trim(),
+            status: 'pending',
+            createdAt: new Date().toISOString()
+          })
+        });
+        if (res.ok) {
+          apiSuccess = true;
+        } else {
+          localErrorMsg = await res.text() || 'Failed to submit via API';
+        }
+      } catch (apiErr: any) {
+        console.warn('API submission failed, relying on Firestore direct write:', apiErr);
+        localErrorMsg = apiErr.message;
+      }
+
+      // 2. Post directly to Firestore (so it records in Firestore if client has permission/Internet is working)
+      try {
+        await setDoc(bookingDocRef, {
+          id: bookingId,
+          name: formData.name.trim(),
+          email: formData.email.trim(),
+          eventType: formData.eventType,
+          date: formData.date,
+          message: formData.message.trim(),
+          status: 'pending',
+          createdAt: serverTimestamp()
+        });
+        apiSuccess = true;
+      } catch (firestoreErr: any) {
+        console.warn('Firestore fallback write limited:', firestoreErr.message || firestoreErr);
+      }
+
+      if (apiSuccess) {
+        setSubmitStatus('success');
+        setFormData({ name: '', email: '', eventType: 'FESTIVAL', date: '', message: '' });
+      } else {
+        throw new Error(localErrorMsg || 'All submission gateways failed');
+      }
     } catch (err: any) {
       console.error('Error submitting booking form:', err);
       setSubmitStatus('error');
       setErrorMessage('Failed to send booking inquiry. Please try again later.');
-      try {
-        handleFirestoreError(err, OperationType.WRITE, `bookings/${bookingId}`);
-      } catch (e2) {
-        // Logged
-      }
     } finally {
       setIsSubmitting(false);
     }
