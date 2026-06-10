@@ -8,6 +8,8 @@ import crypto from "crypto";
 import { createClient } from "@supabase/supabase-js";
 import os from "os";
 import admin from "firebase-admin";
+// @ts-ignore
+import heicConvert from "heic-convert";
 
 // Supabase Init & Configuration Loader (Supports environment variables and supabase-config.json with hardcoded defaults)
 let supabaseUrl = process.env.SUPABASE_URL || "https://sfnlwvcetlawgstbovui.supabase.co";
@@ -422,10 +424,54 @@ async function startServer() {
     });
   }, async (req: express.Request, res: express.Response) => {
     try {
-      const file = (req as any).file;
+      let file = (req as any).file;
       if (!file) {
         console.warn("[API] No file found in request.");
         return res.status(400).json({ error: "No file uploaded. Use field 'file'." });
+      }
+
+      // Check for HEIC/HEIF files and convert automatically to standard JPEG
+      const isHeic = file.originalname?.toLowerCase().endsWith(".heic") || 
+                     file.originalname?.toLowerCase().endsWith(".heif") || 
+                     file.mimetype?.toLowerCase().includes("heic") ||
+                     file.mimetype?.toLowerCase().includes("heif") ||
+                     file.filename?.toLowerCase().endsWith(".heic") ||
+                     file.filename?.toLowerCase().endsWith(".heif");
+
+      if (isHeic) {
+        try {
+          console.log(`[HEIC Converter] Detecting HEIC file: "${file.filename}". Converting to standard JPEG...`);
+          const inputBuffer = fs.readFileSync(file.path);
+          const outputBuffer = await heicConvert({
+            buffer: inputBuffer,
+            format: 'JPEG',
+            quality: 0.90
+          });
+          
+          // Generate new filename with .jpg extension
+          const newFilename = file.filename.replace(/\.(heic|heif)$/i, "") + "-" + Date.now() + ".jpg";
+          const newPath = path.join(path.dirname(file.path), newFilename);
+          
+          fs.writeFileSync(newPath, outputBuffer);
+          console.log(`[HEIC Converter] Successfully converted HEIC to JPEG: "${newFilename}" (size: ${outputBuffer.length} bytes)`);
+          
+          // Clean up original HEIC file from temp uploads
+          try {
+            fs.unlinkSync(file.path);
+          } catch (unlinkErr) {
+            console.warn("[HEIC Converter] Failed to delete original HEIC temp file:", unlinkErr);
+          }
+          
+          // Update the file metadata to reflect the converted JPEG
+          file.path = newPath;
+          file.filename = newFilename;
+          file.mimetype = "image/jpeg";
+          if (file.originalname) {
+            file.originalname = file.originalname.replace(/\.(heic|heif)$/i, ".jpg");
+          }
+        } catch (convErr: any) {
+          console.error("[HEIC Converter] Failed to convert HEIC to JPEG. Will proceed with original file:", convErr.message || convErr);
+        }
       }
       
       const localUrl = `/uploads/${file.filename}`;
@@ -492,6 +538,102 @@ async function startServer() {
     } catch (routeErr: any) {
       console.error("[API] Unhandled error inside upload router handler:", routeErr);
       return res.status(500).json({ error: routeErr.message || "Internal upload handler error" });
+    }
+  });
+
+  // HEIC Link Converter Route
+  apiRouter.post("/convert-heic-link", requireAdmin, async (req, res) => {
+    try {
+      const { url } = req.body;
+      if (!url) {
+        return res.status(400).json({ error: "Missing 'url' parameter" });
+      }
+
+      console.log(`[API/convert-heic-link] Downloading HEIC image from: ${url}`);
+      const response = await fetch(url);
+      if (!response.ok) {
+        throw new Error(`Failed to download image: ${response.statusText}`);
+      }
+
+      const ArrayBuf = await response.arrayBuffer();
+      const originalBuffer = Buffer.from(ArrayBuf);
+      
+      console.log(`[API/convert-heic-link] Converting downloaded HEIC (size: ${originalBuffer.length} bytes) to JPEG...`);
+      const outputBuffer = await heicConvert({
+        buffer: originalBuffer,
+        format: 'JPEG',
+        quality: 0.90
+      });
+
+      // Define static filenames
+      const filename = `converted_heic_${Date.now()}.jpg`;
+      const localUploadsDir = path.join(process.cwd(), "uploads");
+      if (!fs.existsSync(localUploadsDir)) {
+        fs.mkdirSync(localUploadsDir, { recursive: true });
+      }
+      
+      const localPath = path.join(localUploadsDir, filename);
+      fs.writeFileSync(localPath, outputBuffer);
+      console.log(`[API/convert-heic-link] Converted successfully. Saved locally to: ${localPath}`);
+
+      const localUrl = `/uploads/${filename}`;
+
+      // Prioritize Google Cloud Firebase Storage (via Firebase Admin SDK) if available
+      if (firebaseAdminDb) {
+        try {
+          console.log(`[Firebase Store] Uploading converted link to Firebase Storage...`);
+          const bucket = admin.storage().bucket();
+          const fileRef = bucket.file(filename);
+          await fileRef.save(outputBuffer, {
+            metadata: {
+              contentType: "image/jpeg",
+            },
+            resumable: false
+          });
+
+          try {
+            await fileRef.makePublic();
+          } catch (aclErr: any) {
+            console.warn("[Firebase Store] ACL makePublic was blocked:", aclErr.message);
+          }
+
+          const publicUrl = `https://firebasestorage.googleapis.com/v0/b/${bucket.name}/o/${encodeURIComponent(filename)}?alt=media`;
+          console.log(`[Firebase Store] Successfully saved to Firebase Storage: ${publicUrl}`);
+          return res.json({ url: publicUrl });
+        } catch (fbErr: any) {
+          console.error("[Firebase Store] Failed uploading converted HEIC link to Firebase Storage, falling back to local:", fbErr.message);
+        }
+      }
+
+      // Supabase fallback
+      if (supabase) {
+        try {
+          console.log(`[Supabase Store] Uploading converted link to Supabase bucket "${supabaseBucket}"`);
+          const { error: uploadError } = await supabase.storage
+            .from(supabaseBucket)
+            .upload(filename, outputBuffer, {
+              contentType: "image/jpeg",
+              cacheControl: "3600",
+              upsert: true,
+            });
+
+          if (!uploadError) {
+            const cleanUrl = supabaseUrl.replace(/\/$/, "");
+            const publicUrl = `${cleanUrl}/storage/v1/object/public/${supabaseBucket}/${filename}`;
+            console.log(`[Supabase Store] Successfully saved to Supabase: ${publicUrl}`);
+            return res.json({ url: publicUrl });
+          } else {
+            console.warn("[Supabase Store] Storage upload error:", uploadError.message);
+          }
+        } catch (sErr: any) {
+          console.error("[Supabase Store] Error uploading converted HEIC link:", sErr.message);
+        }
+      }
+
+      return res.json({ url: localUrl });
+    } catch (error: any) {
+      console.error("[API/convert-heic-link] Failed to convert HEIC link:", error.message || error);
+      return res.status(500).json({ error: error.message || "Failed to convert HEIC link" });
     }
   });
 

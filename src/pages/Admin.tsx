@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Lock, Save, Upload, Plus, Trash2, Edit3, Image as ImageIcon, Music as MusicIcon, Layout, LogOut, CheckCircle, AlertCircle, X, ChevronUp, ChevronDown, Compass, Info as InfoIcon, Undo2, RotateCcw, Youtube as VideoIcon, Calendar, MessageSquare, Link as LinkIcon, Cloud, Search, Music, FileText, Database, Copy, Check, Eye } from 'lucide-react';
 import { useContent } from '../context/ContentContext';
+import { getClientPlaceholderSvg } from '../utils/imageFallback';
 import { collection, query, getDocs, doc, updateDoc, deleteDoc, orderBy } from 'firebase/firestore';
 import { db, auth } from '../lib/firebase';
 import { signInWithPopup, GoogleAuthProvider, onAuthStateChanged, User } from 'firebase/auth';
@@ -496,7 +497,7 @@ const Admin = () => {
     }
   };
 
-  const handleAddImageUrl = () => {
+  const handleAddImageUrl = async () => {
     if (!imageUrlInput) return;
     
     if (!imageUrlInput.startsWith('http')) {
@@ -504,9 +505,40 @@ const Admin = () => {
       return;
     }
 
+    const isHeic = imageUrlInput.toLowerCase().includes('.heic') || imageUrlInput.toLowerCase().includes('.heif');
+    let finalUrl = imageUrlInput;
+
+    if (isHeic) {
+      showNotification('HEIC format detected. Converting to standard web-viewable format...', 'success');
+      try {
+        const token = localStorage.getItem('admin_token');
+        const res = await fetch('/api/convert-heic-link', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({ url: imageUrlInput })
+        });
+        
+        if (res.ok) {
+          const data = await res.json();
+          if (data && data.url) {
+            finalUrl = data.url;
+            showNotification('Image converted successfully!', 'success');
+          }
+        } else {
+          showNotification('Conversion failed on the server. Trying original URL anyway.', 'error');
+        }
+      } catch (err) {
+        console.error('Failed to convert HEIC link:', err);
+        showNotification('Failed to auto-convert HEIC link.', 'error');
+      }
+    }
+
     const newImage = {
       id: `img-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
-      url: imageUrlInput,
+      url: finalUrl,
       caption: "",
       altText: ""
     };
@@ -521,7 +553,7 @@ const Admin = () => {
 
     setImageUrlInput('');
     setShowUrlInput(false);
-    showNotification('Image added to gallery from link', 'success');
+    showNotification(isHeic ? 'Image added to gallery (Converted from HEIC)' : 'Image added to gallery from link', 'success');
   };
 
   const handleAddVideoUrl = () => {
@@ -2653,7 +2685,14 @@ const Admin = () => {
                       className="group relative bg-white/5 border border-white/10 rounded-2xl overflow-hidden flex flex-col"
                     >
                       <div className="relative aspect-square overflow-hidden group">
-                        <img src={img.url || null} className="w-full h-full object-cover transition-transform group-hover:scale-105" />
+                        <img 
+                          src={img.url || null} 
+                          className="w-full h-full object-cover transition-transform group-hover:scale-105" 
+                          onError={(e) => {
+                            e.currentTarget.onerror = null;
+                            e.currentTarget.src = getClientPlaceholderSvg(img.url || '', img.caption || img.altText || `Gallery ${idx}`);
+                          }}
+                        />
                         <div className="absolute top-2 right-2 flex gap-2">
                           <button 
                             onClick={() => {
