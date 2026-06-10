@@ -181,6 +181,16 @@ function getPlaceholderSvg(filename: string): string {
   let subtitle = "Official Asset";
   let type: "hero" | "portrait" | "vinyl" | "gallery" = "gallery";
 
+  // XML escaping helper to ensure the SVG string is strictly valid XML
+  const escapeXml = (str: string): string => {
+    return (str || "")
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&apos;");
+  };
+
   if (filename.includes("1779062374784") || filename.includes("hero")) {
     title = "African Echo";
     subtitle = "Ugandan Singer & Songwriter based in Kampala";
@@ -266,6 +276,9 @@ function getPlaceholderSvg(filename: string): string {
 
   let innerContent = "";
 
+  const escapedTitle = escapeXml(title);
+  const escapedSubtitle = escapeXml(subtitle);
+
   if (type === "hero") {
     innerContent = `
       <g stroke="url(#gold)" stroke-width="2" fill="none" opacity="0.15">
@@ -275,10 +288,10 @@ function getPlaceholderSvg(filename: string): string {
       </g>
       
       <circle cx="800" cy="450" r="400" fill="url(#sunset)" opacity="0.08" />
-
+ 
       <g transform="translate(150, 450)">
-        <text font-family="'Space Grotesk', system-ui, sans-serif" font-weight="900" font-size="84" letter-spacing="-1.5" fill="url(#gold)" y="-20">${title.toUpperCase()}</text>
-        <text font-family="'Space Grotesk', system-ui, sans-serif" font-weight="300" font-size="28" letter-spacing="4" fill="#a8a29e" y="40">${subtitle.toUpperCase()}</text>
+        <text font-family="'Space Grotesk', system-ui, sans-serif" font-weight="900" font-size="84" letter-spacing="-1.5" fill="url(#gold)" y="-20">${escapedTitle.toUpperCase()}</text>
+        <text font-family="'Space Grotesk', system-ui, sans-serif" font-weight="300" font-size="28" letter-spacing="4" fill="#a8a29e" y="40">${escapedSubtitle.toUpperCase()}</text>
         <rect x="0" y="80" width="120" height="4" fill="url(#sunset)" rx="2" />
       </g>
     `;
@@ -288,8 +301,8 @@ function getPlaceholderSvg(filename: string): string {
         <circle cx="0" cy="-100" r="70" fill="none" stroke="url(#gold)" stroke-width="2" opacity="0.4" />
         <text font-family="'Space Grotesk', system-ui, sans-serif" font-weight="300" font-size="44" fill="url(#gold)" text-anchor="middle" dominant-baseline="central" y="-103" letter-spacing="2">AE</text>
         
-        <text font-family="'Space Grotesk', system-ui, sans-serif" font-weight="800" font-size="36" fill="#f5f5f4" text-anchor="middle" y="20" letter-spacing="1">${title.toUpperCase()}</text>
-        <text font-family="'Space Grotesk', system-ui, sans-serif" font-weight="400" font-size="16" fill="#a8a29e" text-anchor="middle" y="60" letter-spacing="3">${subtitle.toUpperCase()}</text>
+        <text font-family="'Space Grotesk', system-ui, sans-serif" font-weight="800" font-size="36" fill="#f5f5f4" text-anchor="middle" y="20" letter-spacing="1">${escapedTitle.toUpperCase()}</text>
+        <text font-family="'Space Grotesk', system-ui, sans-serif" font-weight="400" font-size="16" fill="#a8a29e" text-anchor="middle" y="60" letter-spacing="3">${escapedSubtitle.toUpperCase()}</text>
         
         <line x1="-40" y1="90" x2="40" y2="90" stroke="url(#sunset)" stroke-width="2" />
       </g>
@@ -306,10 +319,10 @@ function getPlaceholderSvg(filename: string): string {
         <circle cx="0" cy="0" r="20" fill="#0d0a08" />
         <circle cx="0" cy="0" r="6" fill="#1e1b18" />
       </g>
-
+ 
       <g transform="translate(400, 560)">
-        <text font-family="'Space Grotesk', system-ui, sans-serif" font-weight="800" font-size="38" fill="#f5f5f4" text-anchor="middle" letter-spacing="-0.5">${title}</text>
-        <text font-family="'Space Grotesk', system-ui, sans-serif" font-weight="400" font-size="16" fill="url(#gold)" text-anchor="middle" y="35" letter-spacing="4">${subtitle.toUpperCase()}</text>
+        <text font-family="'Space Grotesk', system-ui, sans-serif" font-weight="800" font-size="38" fill="#f5f5f4" text-anchor="middle" letter-spacing="-0.5">${escapedTitle}</text>
+        <text font-family="'Space Grotesk', system-ui, sans-serif" font-weight="400" font-size="16" fill="url(#gold)" text-anchor="middle" y="35" letter-spacing="4">${escapedSubtitle.toUpperCase()}</text>
         
         <text font-family="'JetBrains Mono', monospace" font-size="11" fill="#78716c" text-anchor="middle" y="90" letter-spacing="1">TEMPORARY PLACEHOLDER | RE-UPLOAD COVER IN DASHBOARD</text>
       </g>
@@ -320,8 +333,8 @@ function getPlaceholderSvg(filename: string): string {
         <circle cx="0" cy="-60" r="50" fill="none" stroke="url(#gold)" stroke-width="2" stroke-dasharray="30 10" />
         <circle cx="0" cy="-60" r="25" fill="none" stroke="url(#sunset)" stroke-width="1.5" />
         
-        <text font-family="'Space Grotesk', system-ui, sans-serif" font-weight="700" font-size="32" fill="#e7e5e4" text-anchor="middle" y="40" letter-spacing="-0.5">${title}</text>
-        <text font-family="'Space Grotesk', system-ui, sans-serif" font-weight="300" font-size="15" fill="#a8a29e" text-anchor="middle" y="75" letter-spacing="3">${subtitle.toUpperCase()}</text>
+        <text font-family="'Space Grotesk', system-ui, sans-serif" font-weight="700" font-size="32" fill="#e7e5e4" text-anchor="middle" y="40" letter-spacing="-0.5">${escapedTitle}</text>
+        <text font-family="'Space Grotesk', system-ui, sans-serif" font-weight="300" font-size="15" fill="#a8a29e" text-anchor="middle" y="75" letter-spacing="3">${escapedSubtitle.toUpperCase()}</text>
       </g>
     `;
   }
@@ -417,6 +430,34 @@ async function startServer() {
       
       const localUrl = `/uploads/${file.filename}`;
       console.log(`[API] Upload success locally: ${localUrl}`);
+
+      // Prioritize Google Cloud Firebase Storage (via Firebase Admin SDK)
+      if (firebaseAdminDb) {
+        try {
+          console.log(`[Firebase Store] Uploading "${file.filename}" to Firebase Storage...`);
+          const bucket = admin.storage().bucket();
+          const fileRef = bucket.file(file.filename);
+          await fileRef.save(fs.readFileSync(file.path), {
+            metadata: {
+              contentType: file.mimetype,
+            },
+            resumable: false
+          });
+
+          // Attempt to assign public access ACLs
+          try {
+            await fileRef.makePublic();
+          } catch (aclErr: any) {
+            console.warn("[Firebase Store] ACL makePublic was blocked (fine if bucket is public-by-default or uniform):", aclErr.message);
+          }
+
+          const publicUrl = `https://firebasestorage.googleapis.com/v0/b/${bucket.name}/o/${encodeURIComponent(file.filename)}?alt=media`;
+          console.log(`[Firebase Store] File uploaded successfully to Firebase Storage! Public URL: ${publicUrl}`);
+          return res.json({ url: publicUrl });
+        } catch (fbErr: any) {
+          console.error("[Firebase Store] Failed uploading to Firebase Storage, attempting fallback:", fbErr.message || fbErr);
+        }
+      }
 
       if (supabase) {
         try {
@@ -597,6 +638,23 @@ async function startServer() {
         console.warn("[Local Store] Read/Write issue with local backup file site-content.json. Using in-memory configuration:", fsErr.message);
       }
 
+      // Prioritize Google Cloud Firestore for metadata persistence
+      if (firebaseAdminDb) {
+        try {
+          const docRef = firebaseAdminDb.collection("content").doc("main");
+          const snap = await docRef.get();
+          if (snap.exists) {
+            console.log("[Firestore GET] Successfully loaded site-content from Firestore.");
+            return res.json(snap.data());
+          } else {
+            console.log("[Firestore GET] Site-content missing in Firestore. Seeding Firestore with current local data...");
+            await docRef.set(localData);
+          }
+        } catch (dbErr: any) {
+          console.error("[Firestore GET] Unexpected Firestore site-content issue, trying legacy fallbacks:", dbErr.message || dbErr);
+        }
+      }
+
       if (supabase) {
         try {
           const { data, error } = await supabase
@@ -646,6 +704,16 @@ async function startServer() {
       }
 
       let supabaseWarning: string | undefined = undefined;
+
+      // Prioritize Google Cloud Firestore for saving metadata
+      if (firebaseAdminDb) {
+        try {
+          await firebaseAdminDb.collection("content").doc("main").set(req.body);
+          console.log("[Firestore POST] Successfully saved site-content to Firestore.");
+        } catch (dbErr: any) {
+          console.error("[Firestore POST] Failed to save site-content to Firestore:", dbErr.message || dbErr);
+        }
+      }
 
       if (supabase) {
         try {

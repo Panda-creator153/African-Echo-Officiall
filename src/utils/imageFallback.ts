@@ -76,11 +76,24 @@ export function getClientPlaceholderSvg(filename: string, altText?: string): str
     title = altText ? altText.replace(/[_-]/g, ' ') : "Track Cover";
     subtitle = "Single by African Echo";
     type = "vinyl";
-  } else if (altText) {
+  } else  if (altText) {
     title = altText.replace(/[_-]/g, ' ');
     subtitle = "African Echo Gallery";
     type = "gallery";
   }
+
+  // XML escaping helper to ensure the SVG string is strictly valid XML
+  const escapeXml = (str: string): string => {
+    return str
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&apos;");
+  };
+
+  const escapedTitle = escapeXml(title);
+  const escapedSubtitle = escapeXml(subtitle);
 
   // Choose aspect ratio / sizes matching the context
   let width = 800;
@@ -124,8 +137,8 @@ export function getClientPlaceholderSvg(filename: string, altText?: string): str
       <circle cx="800" cy="450" r="400" fill="url(#sunset)" opacity="0.08" />
 
       <g transform="translate(150, 450)">
-        <text font-family="'Space Grotesk', system-ui, sans-serif" font-weight="900" font-size="84" letter-spacing="-1.5" fill="url(#gold)" y="-20">${title.toUpperCase()}</text>
-        <text font-family="'Space Grotesk', system-ui, sans-serif" font-weight="300" font-size="28" letter-spacing="4" fill="#a8a29e" y="40">${subtitle.toUpperCase()}</text>
+        <text font-family="'Space Grotesk', system-ui, sans-serif" font-weight="900" font-size="84" letter-spacing="-1.5" fill="url(#gold)" y="-20">${escapedTitle.toUpperCase()}</text>
+        <text font-family="'Space Grotesk', system-ui, sans-serif" font-weight="300" font-size="28" letter-spacing="4" fill="#a8a29e" y="40">${escapedSubtitle.toUpperCase()}</text>
         <rect x="0" y="80" width="120" height="4" fill="url(#sunset)" rx="2" />
       </g>
     `;
@@ -135,8 +148,8 @@ export function getClientPlaceholderSvg(filename: string, altText?: string): str
         <circle cx="0" cy="-100" r="70" fill="none" stroke="url(#gold)" stroke-width="2" opacity="0.4" />
         <text font-family="'Space Grotesk', system-ui, sans-serif" font-weight="300" font-size="44" fill="url(#gold)" text-anchor="middle" dominant-baseline="central" y="-103" letter-spacing="2">AE</text>
         
-        <text font-family="'Space Grotesk', system-ui, sans-serif" font-weight="800" font-size="36" fill="#f5f5f4" text-anchor="middle" y="20" letter-spacing="1">${title.toUpperCase()}</text>
-        <text font-family="'Space Grotesk', system-ui, sans-serif" font-weight="400" font-size="16" fill="#a8a29e" text-anchor="middle" y="60" letter-spacing="3">${subtitle.toUpperCase()}</text>
+        <text font-family="'Space Grotesk', system-ui, sans-serif" font-weight="800" font-size="36" fill="#f5f5f4" text-anchor="middle" y="20" letter-spacing="1">${escapedTitle.toUpperCase()}</text>
+        <text font-family="'Space Grotesk', system-ui, sans-serif" font-weight="400" font-size="16" fill="#a8a29e" text-anchor="middle" y="60" letter-spacing="3">${escapedSubtitle.toUpperCase()}</text>
         
         <line x1="-40" y1="90" x2="40" y2="90" stroke="url(#sunset)" stroke-width="2" />
       </g>
@@ -153,10 +166,10 @@ export function getClientPlaceholderSvg(filename: string, altText?: string): str
         <circle cx="0" cy="0" r="20" fill="#0d0a08" />
         <circle cx="0" cy="0" r="6" fill="#1e1b18" />
       </g>
-
+ 
       <g transform="translate(400, 560)">
-        <text font-family="'Space Grotesk', system-ui, sans-serif" font-weight="800" font-size="38" fill="#f5f5f4" text-anchor="middle" letter-spacing="-0.5">${title}</text>
-        <text font-family="'Space Grotesk', system-ui, sans-serif" font-weight="400" font-size="16" fill="url(#gold)" text-anchor="middle" y="35" letter-spacing="4">${subtitle.toUpperCase()}</text>
+        <text font-family="'Space Grotesk', system-ui, sans-serif" font-weight="800" font-size="38" fill="#f5f5f4" text-anchor="middle" letter-spacing="-0.5">${escapedTitle}</text>
+        <text font-family="'Space Grotesk', system-ui, sans-serif" font-weight="400" font-size="16" fill="url(#gold)" text-anchor="middle" y="35" letter-spacing="4">${escapedSubtitle.toUpperCase()}</text>
       </g>
     `;
   } else {
@@ -165,8 +178,8 @@ export function getClientPlaceholderSvg(filename: string, altText?: string): str
         <circle cx="0" cy="-60" r="50" fill="none" stroke="url(#gold)" stroke-width="2" stroke-dasharray="30 10" />
         <circle cx="0" cy="-60" r="25" fill="none" stroke="url(#sunset)" stroke-width="1.5" />
         
-        <text font-family="'Space Grotesk', system-ui, sans-serif" font-weight="700" font-size="32" fill="#e7e5e4" text-anchor="middle" y="40" letter-spacing="-0.5">${title}</text>
-        <text font-family="'Space Grotesk', system-ui, sans-serif" font-weight="300" font-size="15" fill="#a8a29e" text-anchor="middle" y="75" letter-spacing="3">${subtitle.toUpperCase()}</text>
+        <text font-family="'Space Grotesk', system-ui, sans-serif" font-weight="700" font-size="32" fill="#e7e5e4" text-anchor="middle" y="40" letter-spacing="-0.5">${escapedTitle}</text>
+        <text font-family="'Space Grotesk', system-ui, sans-serif" font-weight="300" font-size="15" fill="#a8a29e" text-anchor="middle" y="75" letter-spacing="3">${escapedSubtitle.toUpperCase()}</text>
       </g>
     `;
   }
@@ -181,5 +194,5 @@ export function getClientPlaceholderSvg(filename: string, altText?: string): str
   `.trim();
 
   // Return a web-safe Data URI that works as an Image src directly
-  return `data:image/svg+xml;utf8,${encodeURIComponent(fullSvg)}`;
+  return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(fullSvg)}`;
 }
